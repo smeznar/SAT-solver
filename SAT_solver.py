@@ -19,26 +19,51 @@ class Formula:
         f = Formula(self.num_of_vars, self.num_of_clauses)
         f.clauses = [copy.copy(c) for c in self.clauses]
         return f
-    
+
     def add_clause(self, clause_str: str):
         self.clauses.append(Clause(clause_str))
 
 
 class Clause:
     def __init__(self, clause_str):
-        self.literals = []
+        self.unused_literals = []
+        self.used_literals = []
+        self.is_solved = False
         if clause_str is not None:
             literals = clause_str.split(" ")
             for l in literals[:-1]:
-                self.literals.append(Literal(l))
+                self.unused_literals.append(Literal(l))
 
     def __str__(self):
-        return " ".join([str(l) for l in self.literals])
+        return " ".join([str(l) for l in self.unused_literals])
 
     def __copy__(self):
         c = Clause(None)
-        c.literals = [copy.copy(l) for l in self.literals]
+        c.unused_literals = [copy.copy(l) for l in self.unused_literals]
+        c.used_literals = [copy.copy(l) for l in self.used_literals]
         return c
+
+    def __len__(self):
+        return len(self.unused_literals)
+
+    def does_it_solve(self, number: int, value: bool):
+        literals = list(filter(lambda l: l.number == number, self.unused_literals))
+        if len(literals) > 0:
+            for l in literals:
+                if l.solve(value):
+                    self.is_solved = True
+                    return True
+                else:
+                    self.unused_literals.remove(l)
+                    self.used_literals.append(l)
+        return False
+
+    def unsolve(self, number: int):
+        literals = filter(lambda l: l.number == number, self.used_literals)
+        for l in literals:
+            self.is_solved = False
+            self.unused_literals.append(l)
+            self.used_literals.remove(l)
 
 
 class Literal:
@@ -62,6 +87,9 @@ class Literal:
         l.number = self.number
         return l
 
+    def solve(self, value):
+        return value != self.is_negated
+
 
 def read_file(filename: str):
     with open(filename, "r") as file:
@@ -83,4 +111,6 @@ if __name__ == '__main__':
         print("Not enough arguments")
         sys.exit(1)
     formula = read_file(sys.argv[1])
+    c = formula.clauses[88]
+    pass
     # print(formula)
