@@ -12,7 +12,7 @@ class Formula:
         ret = ""
         for c in self.clauses:
             ret += str(c)
-            ret += "\n"
+            ret += " | "
         return ret
 
     def __copy__(self):
@@ -23,6 +23,40 @@ class Formula:
     def add_clause(self, clause_str: str):
         self.clauses.append(Clause(clause_str))
 
+    def simplify(self, number: int, value: bool):
+        # returns simplified formula and list of clauses that are removed/satisfied
+        sat_clauses = []
+        unsat_clauses = []
+        for c in self.clauses:
+            if c.does_it_solve(number, value):
+                sat_clauses.append(c)
+            else:
+                unsat_clauses.append(c)
+        self.clauses = unsat_clauses
+        return self, sat_clauses
+
+    def undo(self, number):
+        for c in self.clauses:
+            c.undo_clause(number)
+
+    def find_unit_clause(self):
+        for c in self.clauses:
+            if len(c) == 1:
+                return c.unused_literals[0].number, not c.unused_literals[0].is_negated
+        return None, None
+
+    def contains_empty(self):
+        for c in self.clauses:
+            if len(c) == 0:
+                return True
+        return False
+
+    def find_pure(self):
+        # TODO !!!!
+        pass
+
+    def get_literal(self):
+        return self.clauses[0].unused_literals[0].number
 
 class Clause:
     def __init__(self, clause_str):
@@ -46,11 +80,12 @@ class Clause:
     def __len__(self):
         return len(self.unused_literals)
 
+    # TODO: preden das da je kul poglej da ni recimo (p, r, !p)
     def does_it_solve(self, number: int, value: bool):
         literals = list(filter(lambda l: l.number == number, self.unused_literals))
         if len(literals) > 0:
             for l in literals:
-                if l.solve(value):
+                if l.eval(value):
                     self.is_solved = True
                     return True
                 else:
@@ -58,7 +93,7 @@ class Clause:
                     self.used_literals.append(l)
         return False
 
-    def unsolve(self, number: int):
+    def undo_clause(self, number: int):
         literals = filter(lambda l: l.number == number, self.used_literals)
         for l in literals:
             self.is_solved = False
@@ -87,7 +122,7 @@ class Literal:
         l.number = self.number
         return l
 
-    def solve(self, value):
+    def eval(self, value):
         return value != self.is_negated
 
 
@@ -106,11 +141,61 @@ def read_file(filename: str):
         return formula
 
 
+def write_output(file, solution):
+    f = open(file, 'w')
+    if solution is None:
+        f.write('0')
+    else:
+        for (var, val) in solution:
+            if val:
+                f.write(str(var) + ' ')
+            else:
+                f.write('-' + str(var) + ' ')
+    f.close()
+
+
+solution = []
+def dpll(formula):
+    #print(formula)
+    if len(formula.clauses) == 0:
+        return solution
+    if formula.contains_empty():
+        return None
+    var, val = formula.find_unit_clause()
+    if var is not None:
+        f, clauses = formula.simplify(var,val)
+        if dpll(f) is not None:
+            solution.append((var,val))
+            return solution
+        else:
+            f.undo(var)
+            f.clauses+=clauses
+            # print(f, 'undo')
+            return None
+    else:
+        n = formula.get_literal()
+        #print(formula, 'pred simplify 1')
+        f, clauses = formula.simplify(n, True)
+        if dpll(f) is not None:
+            solution.append((n,True))
+            return solution
+        f.undo(n)
+        f.clauses += clauses
+        #print(f,'pred simplify 2')
+        f2, clauses = f.simplify(n, False)
+        if dpll(f2) is not None:
+            solution.append((n, False))
+            return solution
+        else:
+            return None
+
+
+
 if __name__ == '__main__':
-    if len(sys.argv)<3:
+    if len(sys.argv) < 3:
         print("Not enough arguments")
         sys.exit(1)
     formula = read_file(sys.argv[1])
-    c = formula.clauses[88]
-    pass
-    # print(formula)
+    print(dpll(formula))
+    s = dpll(formula)
+    write_output(sys.argv[2], s)
