@@ -2,36 +2,37 @@ import sys
 import copy
 import numpy as np
 
-negated = []
-non_negated = []
-
 class Formula:
     def __init__(self, variables: int, clauses: int):
         self.num_of_vars = variables
         self.num_of_clauses = clauses
         self.clauses = []
+        self.negated = [0]*(variables+1)
+        self.non_negated = [0]*(clauses+1)
 
     def __str__(self):
         ret = ""
         for c in self.clauses:
             ret += str(c)
             ret += " | "
-        return ret
+        return ret[:-3]
 
     def __copy__(self):
         f = Formula(self.num_of_vars, self.num_of_clauses)
         f.clauses = [copy.copy(c) for c in self.clauses]
+        f.negated = self.negated[:]
+        f.non_negated = self.non_negated[:]
         return f
 
     def add_clause(self, clause_str: str):
-        self.clauses.append(Clause(clause_str))
+        self.clauses.append(Clause(self, clause_str))
 
     def simplify(self, number: int, value: bool):
         # returns simplified formula and list of clauses that are removed/satisfied
         sat_clauses = []
         unsat_clauses = []
         for c in self.clauses:
-            if c.does_it_solve(number, value):
+            if c.does_it_solve(self, number, value):
                 sat_clauses.append(c)
             else:
                 unsat_clauses.append(c)
@@ -40,7 +41,7 @@ class Formula:
 
     def undo(self, number):
         for c in self.clauses:
-            c.undo_clause(number)
+            c.undo_clause(self, number)
 
     def find_unit_clause(self):
         for c in self.clauses:
@@ -55,7 +56,7 @@ class Formula:
         return False
 
     def find_pure(self):
-        for i,(n1,n2) in enumerate(zip(negated,non_negated)):
+        for i,(n1,n2) in enumerate(zip(self.negated,self.non_negated)):
             if n1 == 0 and n2 > 0:
                 return i, True
             elif n2 == 0 and n1 > 0:
@@ -67,20 +68,20 @@ class Formula:
 
 
 class Clause:
-    def __init__(self, clause_str):
+    def __init__(self, f: Formula, clause_str):
         self.unused_literals = []
         self.used_literals = []
         self.is_solved = False
         if clause_str is not None:
             literals = clause_str.split()
             for l in literals[:-1]:
-                self.unused_literals.append(Literal(l))
+                self.unused_literals.append(Literal(f, l))
 
     def __str__(self):
         return " ".join([str(l) for l in self.unused_literals])
 
     def __copy__(self):
-        c = Clause(None)
+        c = Clause(None, None) #! Should not be called! Clause constructor needs the parent formula!
         c.unused_literals = [copy.copy(l) for l in self.unused_literals]
         c.used_literals = [copy.copy(l) for l in self.used_literals]
         return c
@@ -88,7 +89,7 @@ class Clause:
     def __len__(self):
         return len(self.unused_literals)
 
-    def does_it_solve(self, number: int, value: bool):
+    def does_it_solve(self, f: Formula, number: int, value: bool):
         literals = list(filter(lambda l: l.number == number, self.unused_literals))
         if len(literals) > 0:
             for l in literals:
@@ -97,50 +98,50 @@ class Clause:
             if self.is_solved:
                 for l in self.unused_literals:
                     if l.is_negated:
-                        negated[l.number] -= 1
+                        f.negated[l.number] -= 1
                     else:
-                        non_negated[l.number] -= 1
+                        f.non_negated[l.number] -= 1
             else:
                 for l in literals:
                     self.unused_literals.remove(l)
                     self.used_literals.append(l)
                     if l.is_negated:
-                        negated[l.number] -= 1
+                        f.negated[l.number] -= 1
                     else:
-                        non_negated[l.number] -= 1
+                        f.non_negated[l.number] -= 1
         return self.is_solved
 
-    def undo_clause(self, number: int):
+    def undo_clause(self, f: Formula, number: int):
         # literals = filter(lambda l: l.number == number, self.used_literals)
         if self.is_solved:
             self.is_solved = False
             for l in self.unused_literals:
                 if l.is_negated:
-                    negated[l.number]+=1
+                    f.negated[l.number]+=1
                 else:
-                    non_negated[l.number]+=1
+                    f.non_negated[l.number]+=1
         else:
             for l in self.used_literals:
                 if l.number == number:
                     self.unused_literals.append(l)
                     self.used_literals.remove(l)
                     if l.is_negated:
-                        negated[number] += 1
+                        f.negated[number] += 1
                     else:
-                        non_negated[number] += 1
+                        f.non_negated[number] += 1
 
 
 class Literal:
-    def __init__(self, literal_str):
+    def __init__(self, f: Formula, literal_str):
         self.is_negated = False
         self.number = 0
         if literal_str is not None:
             if literal_str[0] == '-':
                 self.is_negated = True
                 literal_str = literal_str[1:]
-                negated[int(literal_str)] += 1
+                f.negated[int(literal_str)] += 1
             else:
-                non_negated[int(literal_str)] += 1
+                f.non_negated[int(literal_str)] += 1
             self.number = int(literal_str)
 
     def __str__(self):
@@ -149,7 +150,7 @@ class Literal:
         return str(self.number)
 
     def __copy__(self):
-        l = Literal(None)
+        l = Literal(None, None) #! Should not be called! Literal constructor needs the parent formula!
         l.is_negated = self.is_negated
         l.number = self.number
         return l
@@ -159,17 +160,13 @@ class Literal:
 
 
 def read_file(filename: str):
-    global negated
-    global non_negated
     with open(filename, "r") as file:
         line = file.readline()
         while line[0] == "c":
             line = file.readline()
-        problem = line.split(" ")
+        problem = line.split()
         num_of_vars = int(problem[2])
         num_of_clauses = int(problem[3])
-        negated = [0]*(num_of_vars+1)
-        non_negated = [0]*(num_of_vars+1)
         formula = Formula(num_of_vars, num_of_clauses)
         for l in file:
             if not l == "":
