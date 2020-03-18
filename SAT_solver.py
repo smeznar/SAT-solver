@@ -1,6 +1,9 @@
 import sys
 import copy
+import numpy as np
 
+negated = []
+non_negated = []
 
 class Formula:
     def __init__(self, variables: int, clauses: int):
@@ -52,11 +55,15 @@ class Formula:
         return False
 
     def find_pure(self):
-        # TODO !!!!
-        pass
+        for i,(n1,n2) in enumerate(zip(negated,non_negated)):
+            if n1 == 0 and n2 > 0:
+                return i, True
+            elif n2 == 0 and n1 > 0:
+                return i, False
+        return None, None
 
     def get_literal(self):
-        return self.clauses[0].unused_literals[0].number
+        return self.clauses[0].unused_literals[0].number, not self.clauses[0].unused_literals[0].is_negated
 
 class Clause:
     def __init__(self, clause_str):
@@ -80,25 +87,46 @@ class Clause:
     def __len__(self):
         return len(self.unused_literals)
 
-    # TODO: preden das da je kul poglej da ni recimo (p, r, !p)
     def does_it_solve(self, number: int, value: bool):
         literals = list(filter(lambda l: l.number == number, self.unused_literals))
         if len(literals) > 0:
             for l in literals:
                 if l.eval(value):
                     self.is_solved = True
-                    return True
-                else:
+            if self.is_solved:
+                for l in self.unused_literals:
+                    if l.is_negated:
+                        negated[l.number] -= 1
+                    else:
+                        non_negated[l.number] -= 1
+            else:
+                for l in literals:
                     self.unused_literals.remove(l)
                     self.used_literals.append(l)
-        return False
+                    if l.is_negated:
+                        negated[l.number] -= 1
+                    else:
+                        non_negated[l.number] -= 1
+        return self.is_solved
 
     def undo_clause(self, number: int):
-        literals = filter(lambda l: l.number == number, self.used_literals)
-        for l in literals:
+        # literals = filter(lambda l: l.number == number, self.used_literals)
+        if self.is_solved:
             self.is_solved = False
-            self.unused_literals.append(l)
-            self.used_literals.remove(l)
+            for l in self.unused_literals:
+                if l.is_negated:
+                    negated[l.number]+=1
+                else:
+                    non_negated[l.number]+=1
+        else:
+            for l in self.used_literals:
+                if l.number == number:
+                    self.unused_literals.append(l)
+                    self.used_literals.remove(l)
+                    if l.is_negated:
+                        negated[number] += 1
+                    else:
+                        non_negated[number] += 1
 
 
 class Literal:
@@ -109,6 +137,9 @@ class Literal:
             if literal_str[0] == '-':
                 self.is_negated = True
                 literal_str = literal_str[1:]
+                negated[int(literal_str)] += 1
+            else:
+                non_negated[int(literal_str)] += 1
             self.number = int(literal_str)
 
     def __str__(self):
@@ -127,6 +158,8 @@ class Literal:
 
 
 def read_file(filename: str):
+    global negated
+    global non_negated
     with open(filename, "r") as file:
         line = file.readline()
         while line[0] == "c":
@@ -134,6 +167,8 @@ def read_file(filename: str):
         problem = line.split(" ")
         num_of_vars = int(problem[2])
         num_of_clauses = int(problem[3])
+        negated = [0]*(num_of_vars+1)
+        non_negated = [0]*(num_of_vars+1)
         formula = Formula(num_of_vars, num_of_clauses)
         for l in file:
             if not l == "":
@@ -168,27 +203,43 @@ def dpll(formula):
             solution.append((var,val))
             return solution
         else:
+            f.clauses += clauses
             f.undo(var)
-            f.clauses+=clauses
-            # print(f, 'undo')
-            return None
-    else:
-        n = formula.get_literal()
-        #print(formula, 'pred simplify 1')
-        f, clauses = formula.simplify(n, True)
-        if dpll(f) is not None:
-            solution.append((n,True))
-            return solution
-        f.undo(n)
-        f.clauses += clauses
-        #print(f,'pred simplify 2')
-        f2, clauses = f.simplify(n, False)
-        if dpll(f2) is not None:
-            solution.append((n, False))
-            return solution
-        else:
+            #print(f, 'undo', var)
             return None
 
+    var, val = formula.find_pure()
+    if var is not None:
+        f, clauses = formula.simplify(var,val)
+        if dpll(f) is not None:
+            solution.append((var,val))
+            return solution
+        else:
+            f.clauses += clauses
+            f.undo(var)
+            #print(f, 'undo pure', var)
+            return None
+    else:
+        n, b = formula.get_literal()
+        f, clauses = formula.simplify(n, b)
+        #print('poenostavi', n, 'true')
+        if dpll(f) is not None:
+            solution.append((n, b))
+            return solution
+        f.clauses += clauses
+        f.undo(n)
+        #print('undo',n)
+        #print(f,'pred simplify 2')
+        #print('poenostavi', n, 'false')
+        f, clauses = f.simplify(n, not b)
+        if dpll(f) is not None:
+            solution.append((n, not b))
+            return solution
+        else:
+            f.clauses += clauses
+            f.undo(n)
+            #print('undo', n)
+            return None
 
 
 if __name__ == '__main__':
@@ -196,6 +247,19 @@ if __name__ == '__main__':
         print("Not enough arguments")
         sys.exit(1)
     formula = read_file(sys.argv[1])
-    print(dpll(formula))
     s = dpll(formula)
-    write_output(sys.argv[2], s)
+    print(s)
+    #write_output(sys.argv[2], s)
+
+    '''
+    # izpis za sudoku
+    trues = list(map(lambda x: x[0] - 1, filter(lambda r: r[1], s)))
+    nums = [(a % 9) for a in trues]
+    x = [((a - b) // 9) % 9 for a, b in zip(trues, nums)]
+    y = [(a - 9 * b - c) // 81 for a, b, c in zip(trues, x, nums)]
+    sol = [(a + 1, b + 1, c + 1) for a, b, c in zip(y, x, nums)]
+    sud = np.zeros((9, 9)).astype(int)
+    for x, y, z in sol:
+        sud[x - 1, y - 1] = z
+    print(sud)
+    '''
