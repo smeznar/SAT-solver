@@ -1,0 +1,9 @@
+c trivial test, regular file structure
+c solution: T,F,T
+c
+p cnf 3 5
+1 2 0
+1 3 0
+2 3 0
+-2 -3 0
+-2 -1 0

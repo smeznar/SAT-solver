@@ -65,13 +65,14 @@ class Formula:
     def get_literal(self):
         return self.clauses[0].unused_literals[0].number, not self.clauses[0].unused_literals[0].is_negated
 
+
 class Clause:
     def __init__(self, clause_str):
         self.unused_literals = []
         self.used_literals = []
         self.is_solved = False
         if clause_str is not None:
-            literals = clause_str.split(" ")
+            literals = clause_str.split()
             for l in literals[:-1]:
                 self.unused_literals.append(Literal(l))
 
@@ -190,18 +191,21 @@ def write_output(file, solution):
 
 
 def prettyPrintResult(result, division = 6):
-    temp = sorted(result, key = lambda x: x[0])
-    chunks = len(temp) // division
-    for i in range(chunks):
-        prt = str(temp[i * division][0]) + ": " + str(temp[i * division][1])
-        for j in range(1, division):
-            prt += ",\t" + str(temp[i * division + j][0]) + ": " + str(temp[i * division + j][1])
-        print(prt)
-    if len(temp) > division * chunks:
-        prt = str(temp[chunks * division][0]) + ": " + str(temp[chunks * division][1])
-        for j in range(1, len(temp) - division * chunks):
-            prt += ",\t" + str(temp[chunks*division+j][0]) + ": " + str(temp[chunks*division+j][1])
-        print(prt)
+    if result == None:
+        print("No solution!")
+    else:
+        temp = sorted(result, key = lambda x: x[0])
+        chunks = len(temp) // division
+        for i in range(chunks):
+            prt = str(temp[i * division][0]) + ": " + str(temp[i * division][1])
+            for j in range(1, division):
+                prt += ",\t" + str(temp[i * division + j][0]) + ": " + str(temp[i * division + j][1])
+            print(prt)
+        if len(temp) > division * chunks:
+            prt = str(temp[chunks * division][0]) + ": " + str(temp[chunks * division][1])
+            for j in range(1, len(temp) - division * chunks):
+                prt += ",\t" + str(temp[chunks*division+j][0]) + ": " + str(temp[chunks*division+j][1])
+            print(prt)
 
 
 solution = []
@@ -261,9 +265,12 @@ if __name__ == '__main__':
     if len(sys.argv) < 3:
         print("Not enough arguments")
         sys.exit(1)
-    print("Reading...")
+    verbose = False
+    if verbose:
+        print("Reading...")
     formula = read_file(sys.argv[1])
-    print("Solving...")
+    if verbose:
+        print("Solving...")
     s = dpll(formula)
     prettyPrintResult(s)
     #write_output(sys.argv[2], s)
