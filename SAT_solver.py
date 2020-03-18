@@ -1,5 +1,4 @@
 import sys
-import copy
 import numpy as np
 
 class Formula:
@@ -16,13 +15,6 @@ class Formula:
             ret += str(c)
             ret += " | "
         return ret[:-3]
-
-    def __copy__(self):
-        f = Formula(self.num_of_vars, self.num_of_clauses)
-        f.clauses = [copy.copy(c) for c in self.clauses]
-        f.negated = self.negated[:]
-        f.non_negated = self.non_negated[:]
-        return f
 
     def add_clause(self, clause_str: str):
         self.clauses.append(Clause(self, clause_str))
@@ -79,12 +71,6 @@ class Clause:
 
     def __str__(self):
         return " ".join([str(l) for l in self.unused_literals])
-
-    def __copy__(self):
-        c = Clause(None, None) #! Should not be called! Clause constructor needs the parent formula!
-        c.unused_literals = [copy.copy(l) for l in self.unused_literals]
-        c.used_literals = [copy.copy(l) for l in self.used_literals]
-        return c
 
     def __len__(self):
         return len(self.unused_literals)
@@ -148,12 +134,6 @@ class Literal:
         if self.is_negated:
             return "-" + str(self.number)
         return str(self.number)
-
-    def __copy__(self):
-        l = Literal(None, None) #! Should not be called! Literal constructor needs the parent formula!
-        l.is_negated = self.is_negated
-        l.number = self.number
-        return l
 
     def eval(self, value):
         return value != self.is_negated
