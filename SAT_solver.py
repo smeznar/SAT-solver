@@ -189,6 +189,21 @@ def write_output(file, solution):
     f.close()
 
 
+def prettyPrintResult(result, division = 6):
+    temp = sorted(result, key = lambda x: x[0])
+    chunks = len(temp) // division
+    for i in range(chunks):
+        prt = str(temp[i * division][0]) + ": " + str(temp[i * division][1])
+        for j in range(1, division):
+            prt += ",\t" + str(temp[i * division + j][0]) + ": " + str(temp[i * division + j][1])
+        print(prt)
+    if len(temp) > division * chunks:
+        prt = str(temp[chunks * division][0]) + ": " + str(temp[chunks * division][1])
+        for j in range(1, len(temp) - division * chunks):
+            prt += ",\t" + str(temp[chunks*division+j][0]) + ": " + str(temp[chunks*division+j][1])
+        print(prt)
+
+
 solution = []
 def dpll(formula):
     #print(formula)
@@ -246,9 +261,11 @@ if __name__ == '__main__':
     if len(sys.argv) < 3:
         print("Not enough arguments")
         sys.exit(1)
+    print("Reading...")
     formula = read_file(sys.argv[1])
+    print("Solving...")
     s = dpll(formula)
-    print(s)
+    prettyPrintResult(s)
     #write_output(sys.argv[2], s)
 
     '''
