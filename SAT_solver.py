@@ -7,7 +7,7 @@ class Formula:
         self.num_of_clauses = clauses
         self.clauses = []
         self.negated = [0]*(variables+1)
-        self.non_negated = [0]*(clauses+1)
+        self.non_negated = [0]*(variables+1)
 
     def __str__(self):
         ret = ""
@@ -188,6 +188,8 @@ def prettyPrintResult(result, division = 6):
 solution = []
 def dpll(formula):
     #print(formula)
+    print(len(formula.clauses))
+
     if len(formula.clauses) == 0:
         return solution
     if formula.contains_empty():
@@ -240,9 +242,9 @@ def dpll(formula):
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print("Not enough arguments")
+        print("Usage: " + sys.argv[0] + " <input file> <output file>")
         sys.exit(1)
-    verbose = False
+    verbose = True
     if verbose:
         print("Reading...")
     formula = read_file(sys.argv[1])
