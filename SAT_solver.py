@@ -188,7 +188,7 @@ def prettyPrintResult(result, division = 6):
 solution = []
 def dpll(formula):
     #print(formula)
-    print(len(formula.clauses))
+    #print(len(formula.clauses))
 
     if len(formula.clauses) == 0:
         return solution
@@ -240,6 +240,14 @@ def dpll(formula):
             return None
 
 
+def check(formula, solution):
+    for idx, val in solution:
+        formula, _ = formula.simplify(idx, val)
+    if len(formula.clauses) == 0:
+        return True
+    return False
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print("Usage: " + sys.argv[0] + " <input file> <output file>")
@@ -252,6 +260,7 @@ if __name__ == '__main__':
         print("Solving...")
     s = dpll(formula)
     prettyPrintResult(s)
+    print(check(read_file(sys.argv[1]), s))
     #write_output(sys.argv[2], s)
 
     '''
