@@ -1,5 +1,6 @@
 import sys, os, random
 
+# Randomly selects a given number of items in a given folder, deletes others.
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Usage: " + sys.argv[0] + " <input folder> <final number of files>")
