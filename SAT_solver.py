@@ -185,6 +185,22 @@ def prettyPrintResult(result, division = 6):
             print(prt)
 
 
+def readSolution(file):
+    with open(file, "r") as f_in:
+        values = f_in.readline().split()
+    ret = map(lambda x: int(x), values)
+    ret = map(lambda y: (y, True) if y > 0 else (-y, False), ret)
+    return list(ret)
+
+
+def hexRepresentation(solution):
+    ret = 0
+    for i in range(len(solution)):
+        if solution[i][1]:
+            ret += pow(2, solution[i][0]-1)
+    return hex(ret)
+
+
 solution = []
 def dpll(formula):
     #print(formula)
@@ -259,7 +275,11 @@ if __name__ == '__main__':
     if verbose:
         print("Solving...")
     s = dpll(formula)
-    prettyPrintResult(s)
+    #prettyPrintResult(s)
+    if verbose:
+        print("Printing...")
+    print(hexRepresentation(s))
+    #print(hexRepresentation(readSolution(sys.argv[2])))
     print(check(read_file(sys.argv[1]), s))
     #write_output(sys.argv[2], s)
 
