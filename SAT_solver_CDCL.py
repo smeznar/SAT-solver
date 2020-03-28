@@ -68,6 +68,7 @@ class Formula:
         for c in self.unsat_clauses:
             if len(c) == 0:
                 return [i.number for i in c.used_literals]
+        return None
 
     def find_pure(self):
         for i,(n1,n2) in enumerate(zip(self.negated,self.non_negated)):
@@ -133,14 +134,15 @@ class Clause:
 
     def undo(self, number: int):
         # literals = filter(lambda l: l.number == number, self.used_literals)
-        if self.is_solved and self.solving_var == number:
-            self.is_solved = False
-            self.solving_var = None
-            for l in self.unused_literals:
-                if l.is_negated:
-                    self.super.negated[l.number]+=1
-                else:
-                    self.super.non_negated[l.number]+=1
+        if self.is_solved:
+            if self.solving_var == number:
+                self.is_solved = False
+                self.solving_var = None
+                for l in self.unused_literals:
+                    if l.is_negated:
+                        self.super.negated[l.number]+=1
+                    else:
+                        self.super.non_negated[l.number]+=1
         else:
             for l in self.used_literals:
                 if l.number == number:
@@ -200,6 +202,7 @@ class Graph: # class that represents a directed graph
             for e in node.next:
                 e.prev.remove(node)
             del node
+            del self.V[label]
         else:
             NameError(f"Node {label} does not exist!")
 
@@ -237,7 +240,9 @@ class CDCL:
         self.conflict = None
 
     def solve(self):
-        pass # TODO
+        if self.search(0):
+            return [(i[0], i[1]) for i in self.solution]
+        return None
 
     # search for a solution, return whether a solution was found
     # and the backtracking decision level beta
@@ -284,8 +289,11 @@ class CDCL:
             if unused != None:
                 # found a unit clause => simplify formula
                 self.formula.simplify(*unused)
-                self.solution.append(*unused, d)
-                causes = [self.graph_assigns[i] for i in used]
+                self.solution.append((*unused, d))
+                try:
+                    causes = [self.graph_assigns[i] for i in used]
+                except:
+                    pass
                 node = (unused[0], unused[1], d)
                 self.graph_assigns[unused[0]] = node
                 self.impl_graph.add_node(node)
@@ -300,7 +308,7 @@ class CDCL:
         prevs = self.impl_graph.prev(node)
         if len(prevs) == 0:
             # the value was decided
-            return [(node[0], node[1])], node
+            return [(node[0], node[1], node[2])], node[2]
         ret = []
         max_depth = -1
         for i in prevs:
@@ -348,6 +356,7 @@ class CDCL:
             self.solution.pop()
             del self.graph_assigns[i[0]]
             self.impl_graph.delete_node(i)
+            self.formula.undo(i[0])
 
 
 
@@ -400,29 +409,31 @@ def hexRepresentation(solution):
 
 def check(formula, solution):
     for idx, val in solution:
-        formula, _ = formula.simplify(idx, val)
-    if len(formula.clauses) == 0:
+        formula.simplify(idx, val)
+    if len(formula.unsat_clauses) == 0:
         return True
     return False
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print("Usage: " + sys.argv[0] + " <input file> <output file>")
-        sys.exit(1)
+    #if len(sys.argv) < 3:
+    #    print("Usage: " + sys.argv[0] + " <input file> <output file>")
+    #    sys.exit(1)
     verbose = True
     if verbose:
         print("Reading...")
-    formula = Formula(sys.argv[1])
+    #formula = Formula(sys.argv[1])
+    formula = Formula("tests/izraz.txt")
     if verbose:
         print("Solving...")
-    #s = dpll(formula)
-    #prettyPrintResult(s)
+    solver = CDCL(formula)
+    s = solver.solve()
     if verbose:
         print("Printing...")
+    prettyPrintResult(s)
     #print(hexRepresentation(s))
     #print(hexRepresentation(readSolution(sys.argv[2])))
-    #print(check(read_file(sys.argv[1]), s))
+    print(check(Formula(sys.argv[1]), s))
     #write_output(sys.argv[2], s)
 
     '''

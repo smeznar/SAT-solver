@@ -275,10 +275,10 @@ if __name__ == '__main__':
     if verbose:
         print("Solving...")
     s = dpll(formula)
-    #prettyPrintResult(s)
     if verbose:
         print("Printing...")
-    print(hexRepresentation(s))
+    prettyPrintResult(s)
+    #print(hexRepresentation(s))
     #print(hexRepresentation(readSolution(sys.argv[2])))
     print(check(read_file(sys.argv[1]), s))
     #write_output(sys.argv[2], s)
