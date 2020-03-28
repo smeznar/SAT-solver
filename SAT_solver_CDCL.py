@@ -54,7 +54,8 @@ class Formula:
     def find_unit_clause(self):
         for c in self.unsat_clauses:
             if len(c) == 1:
-                return c.unused_literals[0].number, not c.unused_literals[0].is_negated
+                unused = c.unused_literals[0]
+                return (unused.number, not unused.is_negated), [i.number for i in c.used_literals]
         return None, None
 
     def contains_empty(self):
@@ -62,6 +63,11 @@ class Formula:
             if len(c) == 0:
                 return True
         return False
+
+    def find_empty_clause(self):
+        for c in self.unsat_clauses:
+            if len(c) == 0:
+                return [i.number for i in c.used_literals]
 
     def find_pure(self):
         for i,(n1,n2) in enumerate(zip(self.negated,self.non_negated)):
@@ -158,46 +164,128 @@ class Literal:
         return value != self.is_negated
 
 
-class Graph:
+class Graph: # class that represents a directed graph
     class Node:
         def __init__(self, label):
             self.label = label
-            self.prev = []
-            self.next = []
+            self.prev = [] # pairs (start, connection)
+            self.next = [] # pairs (end, connection)
 
     def __init__(self):
-        self.V = []
-        self.V_names = dict()
-        self.E = []
+        self.V = dict() # {name: Node}
+        self.E = [] # pairs (start, end)
 
-    def add_node(self, name):
-        if name in self.V_names:
-            raise NameError(f"Node {name} already exists!")
-        newNode = self.Node(name)
-        self.V.append(newNode)
-        self.V_names[name] = newNode
+    def __contains__(self, label):
+        return label in self.V
+
+    def add_node(self, label):
+        if label in self.V:
+            raise NameError(f"Node {label} already exists!")
+        newNode = self.Node(label)
+        self.V[label] = newNode
+
+    def connect(self, start, end):
+        if start in self.V:
+            if end in self.V:
+                start_node = self.V[start]
+                end_node = self.V[end]
+                connection = (start_node, end_node)
+                self.E.append(connection)
+                start_node.next.append((end_node, connection))
+                end_node.prev.append((start_node, connection))
+            else:
+                NameError(f"Node {end} does not exist!")
+        else:
+            NameError(f"Node {start} does not exist!")
+
+    def prev(self, label):
+        if label in self.V:
+            return [i[0].label for i in self.V[label].prev]
+        else:
+            NameError(f"Node {label} does not exist!")
+
+    def next(self, label):
+        if label in self.V:
+            return [i[0].label for i in self.V[label].next]
+        else:
+            NameError(f"Node {label} does not exist!")
 
 
 class CDCL:
     def __init__(self, f: Formula):
         self.formula = f
-        self.solution = dict()
-        self.impl_graph = None # TODO
+        self.solution = [] # (int, bool) list
+        self.impl_graph = Graph()
+        self.graph_assigns = dict() # {int: (int, bool, int)}
+        self.curr_var = None
+        self.conflicts = 0
 
     def solve(self):
         pass # TODO
 
-    def search(self, d: int, beta: int):
-        pass # TODO
+    # search for a solution, return whether a solution was found
+    # and the backtracking decision level beta
+    def search(self, d: int):
+        if self.decide(d):
+            return True, None
+        while True:
+            if not self.deduce(d):
+                success, beta = self.search(d + 1)
+                if success:
+                    return True, None
+                elif beta != d:
+                    self.erase(d)
+                    return False, beta
+            success, beta = self.diagnose(d)
+            if not success:
+                self.erase(d)
+                return False, beta
+            self.erase(d)
 
+    # choose a variable assignment, return whether the assignment solves the formula
     def decide(self, d: int):
+        var, val = self.formula.get_literal()
+        self.formula.simplify(var, val)
+        self.solution.append((var, val))
+        self.curr_var = var
+        self.impl_graph.add_node((var, val, d))
+        self.graph_assigns[var] = (var, val, d)
+        if len(self.formula.unsat_clauses) == 0:
+            return True
+        return False
+
+    # find a conflict or resolve all implications, return whether a conflict occured
+    def deduce(self, d: int):
+        loop = True
+        while loop:
+            loop = False
+            unsat = self.formula.find_empty_clause() # None or int list
+            if unsat != None:
+                conflict = self.conflicts
+                self.conflicts += 1
+                self.impl_graph.add_node(conflict)
+                for i in unsat:
+                    start = self.graph_assigns[i]
+                    self.impl_graph.connect(start, conflict)
+                return True
+            unused, used = self.formula.find_unit_clause()
+            if unused != None:
+                self.formula.simplify(*unused)
+                self.solution.append(unused)
+                causes = [self.graph_assigns[i] for i in used]
+                node = (unused[0], unused[1], d)
+                self.graph_assigns[unused[0]] = node
+                self.impl_graph.add_node(node)
+                for i in causes:
+                    self.impl_graph.connect(i, node)
+                loop = True
+            # TODO: add pure variable processing here?
+
+    def erase(self, d: int):
         pass # TODO
 
-    def deduce(self, d: int):
-        pass
-
-    def erase(self):
-        pass
+    def diagnose(self, d):
+        return True, None # TODO
 
 
 def write_output(file, solution):
