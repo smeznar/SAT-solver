@@ -77,6 +77,15 @@ class Formula:
                 return i, False
         return None, None
 
+    def add_induced_clause(self, causes):
+        new_clause = Clause(self, None)
+        for c in causes: # c = (int, bool)
+            new_literal = Literal(new_clause, None)
+            new_literal.number = c[0]
+            new_literal.is_negated = c[1] # value of literal must be false with current assignment
+            new_clause.used_literals.append(new_literal)
+        self.unsat_clauses.append(new_clause)
+
     def get_literal(self):
         # TODO: smarter literal extraction
         return self.unsat_clauses[0].unused_literals[0].number, not self.unsat_clauses[0].unused_literals[0].is_negated
@@ -168,12 +177,11 @@ class Graph: # class that represents a directed graph
     class Node:
         def __init__(self, label):
             self.label = label
-            self.prev = [] # pairs (start, connection)
-            self.next = [] # pairs (end, connection)
+            self.prev = [] # list of nodes
+            self.next = []
 
     def __init__(self):
         self.V = dict() # {name: Node}
-        self.E = [] # pairs (start, end)
 
     def __contains__(self, label):
         return label in self.V
@@ -184,15 +192,24 @@ class Graph: # class that represents a directed graph
         newNode = self.Node(label)
         self.V[label] = newNode
 
+    def delete_node(self, label):
+        if label in self.V:
+            node = self.V[label]
+            for e in node.prev:
+                e.next.remove(node)
+            for e in node.next:
+                e.prev.remove(node)
+            del node
+        else:
+            NameError(f"Node {label} does not exist!")
+
     def connect(self, start, end):
         if start in self.V:
             if end in self.V:
                 start_node = self.V[start]
                 end_node = self.V[end]
-                connection = (start_node, end_node)
-                self.E.append(connection)
-                start_node.next.append((end_node, connection))
-                end_node.prev.append((start_node, connection))
+                start_node.next.append(end_node)
+                end_node.prev.append(start_node)
             else:
                 NameError(f"Node {end} does not exist!")
         else:
@@ -200,13 +217,13 @@ class Graph: # class that represents a directed graph
 
     def prev(self, label):
         if label in self.V:
-            return [i[0].label for i in self.V[label].prev]
+            return [i.label for i in self.V[label].prev]
         else:
             NameError(f"Node {label} does not exist!")
 
     def next(self, label):
         if label in self.V:
-            return [i[0].label for i in self.V[label].next]
+            return [i.label for i in self.V[label].next]
         else:
             NameError(f"Node {label} does not exist!")
 
@@ -217,8 +234,7 @@ class CDCL:
         self.solution = [] # (int, bool) list
         self.impl_graph = Graph()
         self.graph_assigns = dict() # {int: (int, bool, int)}
-        self.curr_var = None
-        self.conflicts = 0
+        self.conflict = None
 
     def solve(self):
         pass # TODO
@@ -244,12 +260,12 @@ class CDCL:
 
     # choose a variable assignment, return whether the assignment solves the formula
     def decide(self, d: int):
-        var, val = self.formula.get_literal()
-        self.formula.simplify(var, val)
-        self.solution.append((var, val))
-        self.curr_var = var
-        self.impl_graph.add_node((var, val, d))
-        self.graph_assigns[var] = (var, val, d)
+        if len(self.formula.unsat_clauses) > 0:
+            var, val = self.formula.get_literal()
+            self.formula.simplify(var, val)
+            self.solution.append((var, val, d))
+            self.impl_graph.add_node((var, val, d))
+            self.graph_assigns[var] = (var, val, d)
         if len(self.formula.unsat_clauses) == 0:
             return True
         return False
@@ -261,17 +277,14 @@ class CDCL:
             loop = False
             unsat = self.formula.find_empty_clause() # None or int list
             if unsat != None:
-                conflict = self.conflicts
-                self.conflicts += 1
-                self.impl_graph.add_node(conflict)
-                for i in unsat:
-                    start = self.graph_assigns[i]
-                    self.impl_graph.connect(start, conflict)
+                # arrived at a conflict => create conflict node
+                self.conflict = [self.graph_assigns[i] for i in unsat]
                 return True
             unused, used = self.formula.find_unit_clause()
             if unused != None:
+                # found a unit clause => simplify formula
                 self.formula.simplify(*unused)
-                self.solution.append(unused)
+                self.solution.append(*unused, d)
                 causes = [self.graph_assigns[i] for i in used]
                 node = (unused[0], unused[1], d)
                 self.graph_assigns[unused[0]] = node
@@ -279,13 +292,63 @@ class CDCL:
                 for i in causes:
                     self.impl_graph.connect(i, node)
                 loop = True
-            # TODO: add pure variable processing here?
+        return False
+        # TODO: add pure variable processing here?
+
+    # computes a list of causes and maximum of their depths
+    def causes_of(self, node):
+        prevs = self.impl_graph.prev(node)
+        if len(prevs) == 0:
+            # the value was decided
+            return [(node[0], node[1])], node
+        ret = []
+        max_depth = -1
+        for i in prevs:
+            if i[2] < node[2]:
+                # cause from lower depth
+                ret.append(i)
+                max_depth = max(max_depth, i[2])
+            else:
+                # cause from same depth => recurse
+                causes, rec_depth = self.causes_of(i)
+                ret.extend(causes)
+                max_depth = max(max_depth, rec_depth)
+        return ret, max_depth
+
+    def causes_of_conflict(self, d):
+        ret = []
+        max_depth = -1
+        for i in self.conflict:
+            if i[2] < d:
+                # cause from lower depth
+                ret.append(i)
+                max_depth = max(max_depth, i[2])
+            else:
+                # cause from same depth => recurse
+                causes, rec_depth = self.causes_of(i)
+                ret.extend(causes)
+                max_depth = max(max_depth, rec_depth)
+        # make the causes unique
+        return list(set(ret)), max_depth
+
+    # tries to resolve the problem on the current level,
+    # otherwise returns the level beta to backtrack
+    def diagnose(self, d):
+        induced, beta = self.causes_of_conflict(d)
+        if beta < d:
+            self.conflict = induced
+            return False, beta
+        self.formula.add_induced_clause(induced)
+        return True, None
 
     def erase(self, d: int):
-        pass # TODO
+        for i in reversed(self.solution):
+            if i[2] < d:
+                return
+            self.solution.pop()
+            del self.graph_assigns[i[0]]
+            self.impl_graph.delete_node(i)
 
-    def diagnose(self, d):
-        return True, None # TODO
 
 
 def write_output(file, solution):
