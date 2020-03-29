@@ -40,7 +40,7 @@ class Formula:
         for c in self.unsat_clauses:
             c.undo(number)
         if modified == None:
-            for c in self.sat_clauses:
+            for c in self.sat_clauses[:]:
                 c.undo(number)
                 if not c.is_solved:
                     self.sat_clauses.remove(c)
@@ -106,6 +106,9 @@ class Clause:
 
     def __str__(self):
         return f"({' ∨ '.join([str(l) for l in self.unused_literals])}"
+
+    def __repr__(self): # for debugging purposes
+        return str([str(i) for i in self.unused_literals])
 
     def __len__(self):
         return len(self.unused_literals)
@@ -289,17 +292,28 @@ class CDCL:
             if unused != None:
                 # found a unit clause => simplify formula
                 self.formula.simplify(*unused)
-                self.solution.append((*unused, d))
-                try:
-                    causes = [self.graph_assigns[i] for i in used]
-                except:
-                    pass
-                node = (unused[0], unused[1], d)
+                causes = [self.graph_assigns[i] for i in used]
+                node = (*unused, d)
+                self.solution.append(node)
                 self.graph_assigns[unused[0]] = node
                 self.impl_graph.add_node(node)
                 for i in causes:
                     self.impl_graph.connect(i, node)
                 loop = True
+                continue
+            """
+            pure = self.formula.find_pure()
+            if pure[0] != None:
+                # found a pure variable => simplify formula
+                self.formula.simplify(*pure)
+                node = (*pure, d)
+                self.solution.append(node)
+                self.graph_assigns[pure[0]] = node
+                self.impl_graph.add_node(node)
+                # the last assignment counts as the reason
+                self.impl_graph.connect(self.solution[-2], node)
+                loop = True
+                """
         return False
         # TODO: add pure variable processing here?
 
@@ -359,7 +373,6 @@ class CDCL:
             self.formula.undo(i[0])
 
 
-
 def write_output(file, solution):
     f = open(file, 'w')
     if solution is None:
@@ -416,21 +429,21 @@ def check(formula, solution):
 
 
 if __name__ == '__main__':
-    #if len(sys.argv) < 3:
-    #    print("Usage: " + sys.argv[0] + " <input file> <output file>")
-    #    sys.exit(1)
+    if len(sys.argv) < 3:
+        print("Usage: " + sys.argv[0] + " <input file> <output file>")
+        sys.exit(1)
     verbose = True
     if verbose:
         print("Reading...")
-    #formula = Formula(sys.argv[1])
-    formula = Formula("tests/izraz.txt")
+    formula = Formula(sys.argv[1])
+    #formula = Formula("tests/izraz.txt")
     if verbose:
         print("Solving...")
     solver = CDCL(formula)
     s = solver.solve()
     if verbose:
         print("Printing...")
-    prettyPrintResult(s)
+    #prettyPrintResult(s)
     #print(hexRepresentation(s))
     #print(hexRepresentation(readSolution(sys.argv[2])))
     print(check(Formula(sys.argv[1]), s))
