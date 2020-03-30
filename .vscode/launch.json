@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["tests/random/test.txt","h"]
+            "args": ["tests/random/unsat_1.txt","h"]
         }
     ]
 }

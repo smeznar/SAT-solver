@@ -244,7 +244,7 @@ class CDCL:
         self.conflict = None
 
     def solve(self):
-        if self.search(0):
+        if self.search(0)[0]:
             return [(i[0], i[1]) for i in self.solution]
         return None
 
@@ -254,6 +254,8 @@ class CDCL:
         if self.decide(d):
             return True, None
         while True:
+            # guard against infinite loop when formula is unsatisfiable
+            sol_len = len(self.solution)
             if not self.deduce(d):
                 success, beta = self.search(d + 1)
                 if success:
@@ -261,6 +263,9 @@ class CDCL:
                 elif beta != d:
                     self.erase(d)
                     return False, beta
+            elif sol_len == 0:
+                # conflict from empty solution => unsatisfiable formula!
+                return False, None
             success, beta = self.diagnose(d)
             if not success:
                 self.erase(d)
