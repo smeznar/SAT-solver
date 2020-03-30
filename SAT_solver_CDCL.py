@@ -2,6 +2,7 @@ import sys
 import numpy as np
 from time import time
 
+
 class Formula:
     def __init__(self, src_path: str):
         self.sat_clauses = []
@@ -89,8 +90,6 @@ class Formula:
         self.unsat_clauses.append(new_clause)
 
     def get_literal(self):
-        # TODO: smarter literal extraction
-        #return self.unsat_clauses[0].unused_literals[0].number, not self.unsat_clauses[0].unused_literals[0].is_negated
         lit1 = np.argmax(self.negated)
         lit2 = np.argmax(self.non_negated)
         if self.negated[lit1] > self.non_negated[lit2]:
@@ -185,15 +184,15 @@ class Literal:
         return value != self.is_negated
 
 
-class Graph: # class that represents a directed graph
+class Graph:  # class that represents a directed graph
     class Node:
         def __init__(self, label):
             self.label = label
-            self.prev = [] # list of nodes
+            self.prev = []  # list of nodes
             self.next = []
 
     def __init__(self):
-        self.V = dict() # {name: Node}
+        self.V = dict()  # {name: Node}
 
     def __contains__(self, label):
         return label in self.V
@@ -296,12 +295,12 @@ class CDCL:
         while loop:
             loop = False
             unsat = self.formula.find_empty_clause() # None or int list
-            if unsat != None:
+            if unsat is not None:
                 # arrived at a conflict => create conflict node
                 self.conflict = [self.graph_assigns[i] for i in unsat]
                 return True
             unused, used = self.formula.find_unit_clause()
-            if unused != None:
+            if unused is not None:
                 # found a unit clause => simplify formula
                 self.formula.simplify(*unused)
                 causes = [self.graph_assigns[i] for i in used]
@@ -312,22 +311,7 @@ class CDCL:
                 for i in causes:
                     self.impl_graph.connect(i, node)
                 loop = True
-                continue
-            """
-            pure = self.formula.find_pure()
-            if pure[0] != None:
-                # found a pure variable => simplify formula
-                self.formula.simplify(*pure)
-                node = (*pure, d)
-                self.solution.append(node)
-                self.graph_assigns[pure[0]] = node
-                self.impl_graph.add_node(node)
-                # the last assignment counts as the reason
-                self.impl_graph.connect(self.solution[-2], node)
-                loop = True
-                """
         return False
-        # TODO: add pure variable processing here?
 
     # computes a list of causes and maximum of their depths
     def causes_of(self, node):
@@ -399,7 +383,7 @@ def write_output(file, solution):
 
 
 def prettyPrintResult(result, division = 6):
-    if result == None:
+    if result is None:
         print("No solution!")
     else:
         temp = sorted(result, key = lambda x: x[0])
@@ -461,8 +445,8 @@ if __name__ == '__main__':
     #prettyPrintResult(s)
     #print(hexRepresentation(s))
     #print(hexRepresentation(readSolution(sys.argv[2])))
-    print(check(Formula(sys.argv[1]), s))
-    #write_output(sys.argv[2], s)
+    #print(check(Formula(sys.argv[1]), s))
+    write_output(sys.argv[2], s)
 
     '''
     # izpis za sudoku

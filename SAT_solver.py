@@ -2,6 +2,7 @@ import sys
 import numpy as np
 from time import time
 
+
 class Formula:
     def __init__(self, variables: int, clauses: int):
         self.num_of_vars = variables
@@ -60,7 +61,7 @@ class Formula:
         #return self.clauses[0].unused_literals[0].number, not self.clauses[0].unused_literals[0].is_negated
         lit1 = np.argmax(self.negated)
         lit2 = np.argmax(self.non_negated)
-        if lit1 > lit2:
+        if self.non_negated[lit1] > self.non_negated[lit2]:
             return lit1, False
         else:
             return lit2, True
@@ -209,9 +210,9 @@ def hexRepresentation(solution):
 
 
 solution = []
+
+
 def dpll(formula):
-    #print(formula)
-    #print(len(formula.clauses))
 
     if len(formula.clauses) == 0:
         return solution
@@ -219,14 +220,13 @@ def dpll(formula):
         return None
     var, val = formula.find_unit_clause()
     if var is not None:
-        f, clauses = formula.simplify(var,val)
+        f, clauses = formula.simplify(var, val)
         if dpll(f) is not None:
-            solution.append((var,val))
+            solution.append((var, val))
             return solution
         else:
             f.clauses += clauses
             f.undo(var)
-            #print(f, 'undo', var)
             return None
 
     var, val = formula.find_pure()
@@ -238,20 +238,15 @@ def dpll(formula):
         else:
             f.clauses += clauses
             f.undo(var)
-            #print(f, 'undo pure', var)
             return None
     else:
         n, b = formula.get_literal()
         f, clauses = formula.simplify(n, b)
-        #print('poenostavi', n, 'true')
         if dpll(f) is not None:
             solution.append((n, b))
             return solution
         f.clauses += clauses
         f.undo(n)
-        #print('undo',n)
-        #print(f,'pred simplify 2')
-        #print('poenostavi', n, 'false')
         f, clauses = f.simplify(n, not b)
         if dpll(f) is not None:
             solution.append((n, not b))
@@ -259,7 +254,6 @@ def dpll(formula):
         else:
             f.clauses += clauses
             f.undo(n)
-            #print('undo', n)
             return None
 
 
