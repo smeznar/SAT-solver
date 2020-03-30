@@ -91,6 +91,12 @@ class Formula:
     def get_literal(self):
         # TODO: smarter literal extraction
         return self.unsat_clauses[0].unused_literals[0].number, not self.unsat_clauses[0].unused_literals[0].is_negated
+        #lit1 = np.argmax(self.negated)
+        #lit2 = np.argmax(self.non_negated)
+        #f lit1 > lit2:
+        #    return lit1, False
+        #else:
+        #    return lit2, True
 
 
 class Clause:

@@ -57,13 +57,13 @@ class Formula:
         return None, None
 
     def get_literal(self):
-        #return self.clauses[0].unused_literals[0].number, not self.clauses[0].unused_literals[0].is_negated
-        lit1 = np.argmax(self.negated)
-        lit2 = np.argmax(self.non_negated)
-        if lit1 > lit2:
-            return lit1, False
-        else:
-            return lit2, True
+        return self.clauses[0].unused_literals[0].number, not self.clauses[0].unused_literals[0].is_negated
+        #lit1 = np.argmax(self.negated)
+        #lit2 = np.argmax(self.non_negated)
+        #if lit1 > lit2:
+        #    return lit1, False
+        #else:
+        #    return lit2, True
 
 
 class Clause:
@@ -287,7 +287,7 @@ if __name__ == '__main__':
     print('time',end-start)
     if verbose:
         print("Printing...")
-    prettyPrintResult(s)
+    #prettyPrintResult(s)
     #print(hexRepresentation(s))
     #print(hexRepresentation(readSolution(sys.argv[2])))
     print(check(read_file(sys.argv[1]), s))
