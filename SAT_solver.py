@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+from time import time
 
 class Formula:
     def __init__(self, variables: int, clauses: int):
@@ -56,7 +57,13 @@ class Formula:
         return None, None
 
     def get_literal(self):
-        return self.clauses[0].unused_literals[0].number, not self.clauses[0].unused_literals[0].is_negated
+        #return self.clauses[0].unused_literals[0].number, not self.clauses[0].unused_literals[0].is_negated
+        lit1 = np.argmax(self.negated)
+        lit2 = np.argmax(self.non_negated)
+        if lit1 > lit2:
+            return lit1, False
+        else:
+            return lit2, True
 
 
 class Clause:
@@ -274,7 +281,10 @@ if __name__ == '__main__':
     formula = read_file(sys.argv[1])
     if verbose:
         print("Solving...")
+    start = time()
     s = dpll(formula)
+    end = time()
+    print('time',end-start)
     if verbose:
         print("Printing...")
     prettyPrintResult(s)

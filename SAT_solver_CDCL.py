@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+from time import time
 
 class Formula:
     def __init__(self, src_path: str):
@@ -439,8 +440,11 @@ if __name__ == '__main__':
     #formula = Formula("tests/izraz.txt")
     if verbose:
         print("Solving...")
+    start = time()
     solver = CDCL(formula)
     s = solver.solve()
+    end = time()
+    print('time', end-start)
     if verbose:
         print("Printing...")
     #prettyPrintResult(s)
