@@ -284,11 +284,11 @@ if __name__ == '__main__':
     #prettyPrintResult(s)
     #print(hexRepresentation(s))
     #print(hexRepresentation(readSolution(sys.argv[2])))
-    print(check(read_file(sys.argv[1]), s))
-    #write_output(sys.argv[2], s)
+    #print(check(read_file(sys.argv[1]), s))
+    write_output(sys.argv[2], s)
 
     '''
-    # izpis za sudoku
+    # sudoku print
     trues = list(map(lambda x: x[0] - 1, filter(lambda r: r[1], s)))
     nums = [(a % 9) for a in trues]
     x = [((a - b) // 9) % 9 for a, b in zip(trues, nums)]
