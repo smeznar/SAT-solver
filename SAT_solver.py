@@ -61,7 +61,7 @@ class Formula:
         #return self.clauses[0].unused_literals[0].number, not self.clauses[0].unused_literals[0].is_negated
         lit1 = np.argmax(self.negated)
         lit2 = np.argmax(self.non_negated)
-        if self.non_negated[lit1] > self.non_negated[lit2]:
+        if self.negated[lit1] > self.non_negated[lit2]:
             return lit1, False
         else:
             return lit2, True
